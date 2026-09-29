@@ -1,0 +1,8 @@
+{
+  "name": "လစဉ် အသုံးစရိတ် မှတ်တမ်း (Expense Tracker PWA)",
+  "description": "လစဉ် အသုံးစရိတ် မှတ်တမ်း (Expense Tracker PWA) - Track and manage monthly expenses and analytics.",
+  "permissions": [],
+  "capabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
