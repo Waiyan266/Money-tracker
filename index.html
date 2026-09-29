@@ -871,10 +871,18 @@
                     body: JSON.stringify({ image: dataUrl, mimeType })
                 });
 
-                const result = await response.json();
+                const rawText = await response.text();
+                let result = null;
+                try {
+                    result = JSON.parse(rawText);
+                } catch (parseErr) {
+                    console.error('Non-JSON server response:', rawText);
+                    throw new Error('ဆာဗာမှ ပြန်ကြားချက် မမှန်ကန်ပါ (စာမျက်နှာကို Refresh လုပ်ပေးပါ)');
+                }
 
-                if (!result.success || !result.data) {
-                    throw new Error(result.error || 'ပြေစာကို ဖတ်ရှု၍ မရနိုင်ပါ');
+                if (!result || !result.success || !result.data) {
+                    const errMsg = (result && result.error) ? (typeof result.error === 'string' ? result.error : JSON.stringify(result.error)) : 'ပြေစာကို ဖတ်ရှု၍ မရနိုင်ပါ';
+                    throw new Error(errMsg);
                 }
 
                 const data = result.data;
@@ -925,7 +933,13 @@
 
             } catch (err) {
                 console.error("Scan error:", err);
-                showToast("Slip ဖတ်ယူရာတွင် အမှားဖြစ်ပေါ်ခဲ့သည်: " + (err.message || ''), "error");
+                let message = err.message || '';
+                if (message.includes('503') || message.includes('high demand') || message.includes('UNAVAILABLE')) {
+                    message = 'Google AI တွင် ခေတ္တလူသုံးများနေပါသည် (High Demand)။ ခဏအကြာတွင် ထပ်မံရိုက်ကြည့်ပေးပါ။';
+                } else if (message.includes('API_KEY_INVALID') || message.includes('API key not valid')) {
+                    message = 'API Key မှားယွင်းနေပါသည်။ စစ်ဆေးပေးပါ။';
+                }
+                showToast("Slip ဖတ်ရှုရာတွင်: " + message, "error");
             } finally {
                 overlay.classList.add('hidden');
                 document.getElementById('slipCameraInput').value = '';
