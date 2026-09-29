@@ -1,0 +1,16 @@
+{
+  "name": "လစဉ် အသုံးစရိတ် မှတ်တမ်း",
+  "short_name": "ExpenseTracker",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#15803d",
+  "theme_color": "#15803d",
+  "icons": [
+    {
+      "src": "https://cdn-icons-png.flaticon.com/512/2382/2382461.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}

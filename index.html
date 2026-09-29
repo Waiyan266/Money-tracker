@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="my" class="h-full bg-slate-50">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>လစဉ် အသုံးစရိတ် မှတ်တမ်း (Expense Tracker PWA)</title>
+
+    <!-- PWA Manifest & Theme Color Settings -->
+    <link rel="manifest" href="./manifest.json">
+    <meta name="theme-color" content="#15803d">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0fdf4',
+                            100: '#dcfce7',
+                            500: '#22c55e',
+                            600: '#16a34a',
+                            700: '#15803d',
+                            900: '#14532d',
+                        }
+                    },
+                    fontFamily: {
+                        sans: ['Padauk', 'Noto Sans Myanmar', 'Inter', 'sans-serif'],
+                    },
+                    boxShadow: {
+                        '3d': '0 6px 0 #047857, 0 15px 25px rgba(16, 185, 129, 0.3)',
+                        '3d-active': '0 0px 0 #047857, 0 0px 0 rgba(16, 185, 129, 0)',
+                        'glass': '0 8px 32px 0 rgba(31, 38, 135, 0.07)',
+                    }
+                }
+            }
+        }
+    </script>
+
+    <!-- External Libraries: Chart.js, FontAwesome, Google Fonts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+Myanmar:wght@400;500;600;700&family=Padauk:wght@400;700&display=swap" rel="stylesheet">
+
+    <style>
+        body {
+            font-family: 'Padauk', 'Noto Sans Myanmar', sans-serif;
+            -webkit-tap-highlight-color: transparent;
+            background: linear-gradient(135deg, #f8fafc 0%, #e0f2fe 50%, #ecfdf5 100%);
+            background-attachment: fixed;
+        }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 9999px; }
+        
+        .animate-slide-up {
+            animation: slideUp 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        }
+        @keyframes slideUp {
+            from { opacity: 0; transform: translateY(16px) scale(0.98); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .input-3d {
+            background-color: #f1f5f9;
+            box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.06);
+            border: 1px solid transparent;
+            transition: all 0.25s ease;
+        }
+        .input-3d:focus {
+            background-color: #ffffff;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.25);
+            border-color: #10b981;
+        }
+
+        .glass-panel {
+            background: rgba(255, 255, 255, 0.82);
+            backdrop-filter: blur(16px);
+            -webkit-backdrop-filter: blur(16px);
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.07);
+        }
+    </style>
+</head>
+<body class="h-full flex flex-col text-slate-800">
+
+    <div class="sticky top-0 z-40 w-full flex flex-col">
+        
+        <!-- Header Container -->
+        <header class="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white shadow-[0_10px_20px_rgba(20,184,166,0.25)] pb-5 pt-3 rounded-b-[2rem] relative z-10">
+            <div class="max-w-3xl mx-auto px-4">
+                
+                <!-- Title & PWA Install Row -->
+                <div class="flex items-center justify-between mb-3">
+                    <div class="flex items-center gap-2.5">
+                        <div class="bg-white/20 p-2 rounded-xl backdrop-blur-md shadow-inner border border-white/30">
+                            <i class="fa-solid font-bold fa-wallet text-lg text-white drop-shadow-md"></i>
+                        </div>
+                        <div>
+                            <h1 class="text-base sm:text-lg font-bold leading-tight drop-shadow-sm whitespace-nowrap">အသုံးစရိတ် မှတ်တမ်း</h1>
+                            <p class="text-[10px] text-emerald-100 uppercase tracking-wider font-semibold">လစဉ် သုံးစွဲမှု စီမံခန့်ခွဲစနစ်</p>
+                        </div>
+                    </div>
+
+                    <div class="flex items-center gap-2">
+                        <!-- PWA Install Button (Dynamic) -->
+                        <button id="pwaInstallBtn" onclick="triggerPwaInstall()" class="hidden bg-amber-400 hover:bg-amber-300 text-slate-900 text-xs font-bold px-3 py-1.5 rounded-xl shadow-md transition flex items-center gap-1.5 animate-pulse">
+                            <i class="fa-solid fa-download"></i>
+                            <span class="hidden sm:inline">App တင်မည်</span>
+                        </button>
+
+                        <!-- Month Selector -->
+                        <div class="flex items-center bg-black/20 rounded-xl p-1 backdrop-blur-sm border border-white/10 shadow-inner flex-shrink-0">
+                            <input type="month" id="selectedMonth" class="bg-transparent text-xs sm:text-sm font-bold text-white outline-none cursor-pointer px-1">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Monthly Summary Card -->
+                <div class="bg-white/20 backdrop-blur-md rounded-2xl p-3 border border-white/30 flex items-center justify-between shadow-lg relative overflow-hidden">
+                    <div class="absolute -right-4 -top-4 w-16 h-16 bg-white/10 rounded-full blur-xl"></div>
+                    <div class="relative z-10">
+                        <span class="text-[10px] text-emerald-50 block font-medium mb-0.5">ယခုလ စုစုပေါင်း အသုံးစရိတ်</span>
+                        <div id="monthlyTotalDisplay" class="text-xl sm:text-2xl font-extrabold tracking-tight drop-shadow-md flex items-baseline gap-1">
+                            <span>0</span> <span class="text-base font-normal opacity-80">¥</span>
+                        </div>
+                    </div>
+                    <div class="text-right relative z-10">
+                        <span class="text-[10px] text-emerald-50 block font-medium mb-0.5">ဝယ်ယူသည့် အကြိမ်</span>
+                        <div id="monthlyCountDisplay" class="text-sm sm:text-base font-bold drop-shadow-md flex items-baseline justify-end gap-1">
+                            <span>0</span> <span class="text-xs font-normal opacity-80">ကြိမ်</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <nav class="max-w-2xl mx-auto w-full px-4 -mt-4 relative z-20">
+            <div class="glass-panel rounded-2xl p-1.5 flex justify-between text-center text-[10px] sm:text-xs font-bold text-slate-500 shadow-xl">
+                <button onclick="switchTab('add')" id="tab-add" class="tab-btn py-2 px-1 flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 rounded-xl bg-white shadow-sm text-emerald-600 transition-all duration-300">
+                    <i class="fa-solid fa-circle-plus text-base"></i>
+                    <span>မှတ်တမ်းသစ်</span>
+                </button>
+                <button onclick="switchTab('history')" id="tab-history" class="tab-btn py-2 px-1 flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 rounded-xl hover:bg-white/50 transition-all duration-300">
+                    <i class="fa-solid fa-list-check text-base"></i>
+                    <span>ရက်အလိုက်</span>
+                </button>
+                <button onclick="switchTab('chart')" id="tab-chart" class="tab-btn py-2 px-1 flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 rounded-xl hover:bg-white/50 transition-all duration-300">
+                    <i class="fa-solid fa-chart-pie text-base"></i>
+                    <span>သုံးစွဲမှု ဇယား</span>
+                </button>
+                <button onclick="switchTab('presets')" id="tab-presets" class="tab-btn py-2 px-1 flex-1 flex flex-col sm:flex-row items-center justify-center gap-1 rounded-xl hover:bg-white/50 transition-all duration-300">
+                    <i class="fa-solid fa-bolt text-base"></i>
+                    <span>အမြန်ရွေး</span>
+                </button>
+            </div>
+        </nav>
+    </div>
+
+    <main class="max-w-3xl w-full mx-auto p-4 flex-1 pb-24 mt-2">
+
+        <!-- TAB 1: ADD EXPENSE FORM -->
+        <section id="view-add" class="tab-content animate-slide-up space-y-4">
+            <div class="glass-panel rounded-3xl p-5 sm:p-7">
+                <h2 class="text-base font-bold text-slate-800 mb-5 flex items-center gap-2">
+                    <div class="bg-emerald-100 text-emerald-600 p-2 rounded-xl shadow-inner">
+                        <i class="fa-solid fa-pen-to-square"></i>
+                    </div>
+                    အသုံးစရိတ် အသစ်မှတ်တမ်းတင်ရန်
+                </h2>
+
+                <form id="expenseForm" onsubmit="handleFormSubmit(event)" class="space-y-4">
+                    <div>
+                        <label class="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">ကုန်ကျငွေ (¥) *</label>
+                        <div class="relative">
+                            <input type="number" id="amount" required min="1" step="any" placeholder="0" class="w-full text-2xl font-black input-3d rounded-2xl px-4 py-3 text-slate-800 outline-none">
+                            <span class="absolute right-4 top-3.5 text-lg font-bold text-slate-400">¥</span>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">အမျိုးအစား *</label>
+                            <select id="category" required class="w-full input-3d rounded-2xl px-3 py-3 text-sm font-semibold text-slate-700 outline-none">
+                                <option value="အစားအစာ">🍚 အစားအစာ (Food)</option>
+                                <option value="အိမ်သုံးစရိတ်">🏠 အိမ်သုံးစရိတ် (Household)</option>
+                                <option value="ခရီးစရိတ်">🚌 ခရီးစရိတ် / လမ်းစရိတ်</option>
+                                <option value="ဖုန်းနှင့် အင်တာနက်">📱 ဖုန်း/အင်တာနက် (Bills)</option>
+                                <option value="ကျန်းမာရေး">💊 ကျန်းမာရေး (Health)</option>
+                                <option value="ဝတ်ဆင်ရေး">👕 အဝတ်အထည် (Clothing)</option>
+                                <option value="အပျော်အပါး">☕ အပန်းဖြေ/ကဖေး</option>
+                                <option value="အကြွေးစာရင်း">💳 အကြွေးစာရင်း (Debt/Credit)</option>
+                                <option value="အထွေထွေ">📦 အထွေထွေ (General)</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">ရက်စွဲ *</label>
+                            <input type="date" id="expenseDate" required class="w-full input-3d rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 gap-4">
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">ဝယ်ယူခဲ့သည့် ဆိုင် / နေရာ</label>
+                            <input type="text" id="store" list="storesDatalist" placeholder="ဥပမာ- City Mart, ရပ်ကွက်ဆိုင်" class="w-full input-3d rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none">
+                            <datalist id="storesDatalist"></datalist>
+                        </div>
+
+                        <div>
+                            <label class="block text-[11px] font-bold text-slate-600 mb-1.5 uppercase tracking-wide">မှတ်ချက် (Optional)</label>
+                            <input type="text" id="note" placeholder="ဥပမာ- ဟင်းသီးဟင်းရွက်" class="w-full input-3d rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none">
+                        </div>
+                    </div>
+
+                    <div class="pt-3">
+                        <button type="submit" class="w-full bg-gradient-to-b from-emerald-400 to-emerald-600 text-white font-bold py-4 px-4 rounded-2xl shadow-3d active:shadow-3d-active active:translate-y-[6px] transition-all duration-150 flex items-center justify-center gap-2 text-base border border-emerald-400/50">
+                            <i class="fa-solid fa-floppy-disk text-lg"></i>
+                            <span>မှတ်တမ်းကို သိမ်းဆည်းမည်</span>
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </section>
+
+        <!-- TAB 2: DAILY HISTORY LOG -->
+        <section id="view-history" class="tab-content hidden animate-slide-up space-y-4">
+            <div class="glass-panel rounded-3xl p-2.5 flex flex-col sm:flex-row gap-2">
+                <div class="relative flex-1">
+                    <i class="fa-solid fa-magnifying-glass absolute left-4 top-3.5 text-slate-400 text-sm"></i>
+                    <input type="text" id="historySearch" oninput="renderHistory()" placeholder="မှတ်ချက် သို့ ဆိုင် ရှာရန်..." class="w-full pl-10 pr-4 py-3 text-sm font-medium input-3d rounded-2xl outline-none">
+                </div>
+                <select id="categoryFilter" onchange="renderHistory()" class="input-3d rounded-2xl px-4 py-3 text-sm font-semibold text-slate-700 outline-none">
+                    <option value="ALL">အမျိုးအစား အားလုံး</option>
+                    <option value="အစားအစာ">🍚 အစားအစာ</option>
+                    <option value="အိမ်သုံးစရိတ်">🏠 အိမ်သုံးစရိတ်</option>
+                    <option value="ခရီးစရိတ်">🚌 ခရီးစရိတ်</option>
+                    <option value="ဖုန်းနှင့် အင်တာနက်">📱 ဖုန်း/အင်တာနက်</option>
+                    <option value="ကျန်းမာရေး">💊 ကျန်းမာရေး</option>
+                    <option value="ဝတ်ဆင်ရေး">👕 အဝတ်အထည်</option>
+                    <option value="အပျော်အပါး">☕ အပန်းဖြေ/ကဖေး</option>
+                    <option value="အကြွေးစာရင်း">💳 အကြွေးစာရင်း</option>
+                    <option value="အထွေထွေ">📦 အထွေထွေ</option>
+                </select>
+            </div>
+
+            <div id="historyList" class="space-y-4"></div>
+        </section>
+
+        <!-- TAB 3: CHARTS & ANALYTICS -->
+        <section id="view-chart" class="tab-content hidden animate-slide-up space-y-4">
+            <div class="glass-panel rounded-3xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <div class="bg-indigo-100 text-indigo-600 p-1.5 rounded-lg shadow-inner"><i class="fa-solid fa-pie-chart"></i></div>
+                    အမျိုးအစားအလိုက် ခွဲခြမ်းစိတ်ဖြာမှု
+                </h3>
+                <div class="relative w-full max-w-xs mx-auto h-56 flex items-center justify-center">
+                    <canvas id="categoryChart"></canvas>
+                </div>
+            </div>
+
+            <div class="glass-panel rounded-3xl p-5">
+                <h3 class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-4 flex items-center gap-2">
+                    <div class="bg-rose-100 text-rose-600 p-1.5 rounded-lg shadow-inner"><i class="fa-solid fa-chart-column"></i></div>
+                    ရက်အလိုက် သုံးစွဲမှု (Daily)
+                </h3>
+                <div class="relative w-full h-56">
+                    <canvas id="dailyChart"></canvas>
+                </div>
+            </div>
+        </section>
+
+        <!-- TAB 4: QUICK PRESETS -->
+        <section id="view-presets" class="tab-content hidden animate-slide-up space-y-4">
+            <div class="glass-panel rounded-3xl p-5 sm:p-7">
+                <div class="mb-5">
+                    <h3 class="text-base font-bold text-slate-800 flex items-center gap-2">
+                        <div class="bg-amber-100 text-amber-500 p-2 rounded-xl shadow-inner"><i class="fa-solid fa-bolt"></i></div>
+                        အမြန်ရွေးချယ်မှုများ
+                    </h3>
+                    <p class="text-[11px] text-slate-500 mt-2 font-medium">အောက်ပါ ခလုတ်များကို နှိပ်ပါက Form တွင် အလိုအလျောက် ဖြည့်ပေးမည် ဖြစ်ပါသည်။</p>
+                </div>
+
+                <div class="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 shadow-inner">
+                    <h4 class="text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-wider">အမျိုးအစား အမြန်ရွေးရန်</h4>
+                    <div id="quickCategoriesContainer" class="flex flex-wrap gap-2.5"></div>
+                </div>
+
+                <div class="bg-slate-50/50 rounded-2xl p-4 border border-slate-100 shadow-inner mt-4">
+                    <h4 class="text-[10px] font-bold text-slate-400 mb-3 uppercase tracking-wider">အရင်ဝယ်ယူခဲ့ဖူးသော ဆိုင်များ</h4>
+                    <div id="quickStoresContainer" class="flex flex-wrap gap-2.5"></div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <!-- Edit Modal Dialog -->
+    <div id="editModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden transition-opacity">
+        <div class="bg-white rounded-[2rem] max-w-md w-full p-6 shadow-2xl space-y-4 animate-slide-up border border-slate-100">
+            <div class="flex items-center justify-between pb-2">
+                <h3 class="font-bold text-slate-800 text-lg flex items-center gap-2">
+                    <div class="bg-emerald-100 text-emerald-600 p-1.5 rounded-lg"><i class="fa-solid fa-pen"></i></div>
+                    မှတ်တမ်း ပြင်ဆင်ရန်
+                </h3>
+                <button onclick="closeEditModal()" class="text-slate-400 hover:text-slate-600 bg-slate-100 p-2 rounded-full transition">
+                    <i class="fa-solid fa-xmark text-lg w-5 h-5 flex items-center justify-center"></i>
+                </button>
+            </div>
+
+            <form id="editForm" onsubmit="handleEditSubmit(event)" class="space-y-4 pt-2">
+                <input type="hidden" id="editId">
+                <div>
+                    <label class="block text-xs font-bold text-slate-600 mb-1.5">ကုန်ကျငွေ (¥) *</label>
+                    <input type="number" id="editAmount" required min="1" class="w-full input-3d rounded-xl p-3 text-lg font-black outline-none">
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">အမျိုးအစား *</label>
+                        <select id="editCategory" required class="w-full input-3d rounded-xl p-3 text-sm font-semibold outline-none">
+                            <option value="အစားအစာ">🍚 အစားအစာ</option>
+                            <option value="အိမ်သုံးစရိတ်">🏠 အိမ်သုံးစရိတ်</option>
+                            <option value="ခရီးစရိတ်">🚌 ခရီးစရိတ်</option>
+                            <option value="ဖုန်းနှင့် အင်တာနက်">📱 ဖုန်း/အင်တာနက်</option>
+                            <option value="ကျန်းမာရေး">💊 ကျန်းမာရေး</option>
+                            <option value="ဝတ်ဆင်ရေး">👕 အဝတ်အထည်</option>
+                            <option value="အပျော်အပါး">☕ အပန်းဖြေ/ကဖေး</option>
+                            <option value="အကြွေးစာရင်း">💳 အကြွေးစာရင်း</option>
+                            <option value="အထွေထွေ">📦 အထွေထွေ</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">ဆိုင်အမည်</label>
+                        <input type="text" id="editStore" class="w-full input-3d rounded-xl p-3 text-sm font-semibold outline-none">
+                    </div>
+                </div>
+                <div class="grid grid-cols-2 gap-3">
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">ရက်စွဲ *</label>
+                        <input type="date" id="editExpenseDate" required class="w-full input-3d rounded-xl p-3 text-sm font-semibold outline-none">
+                    </div>
+                    <div>
+                        <label class="block text-xs font-bold text-slate-600 mb-1.5">မှတ်ချက်</label>
+                        <input type="text" id="editNote" class="w-full input-3d rounded-xl p-3 text-sm font-semibold outline-none">
+                    </div>
+                </div>
+
+                <div class="flex gap-3 pt-4">
+                    <button type="button" onclick="closeEditModal()" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3.5 rounded-2xl shadow-sm hover:bg-slate-200 transition-all">မလုပ်တော့ပါ</button>
+                    <button type="submit" class="flex-1 bg-gradient-to-b from-emerald-400 to-emerald-600 text-white font-bold py-3.5 rounded-2xl shadow-[0_4px_0_#047857] active:shadow-[0_0px_0_#047857] active:translate-y-[4px] transition-all border border-emerald-400/50">ပြင်ဆင်မည်</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Custom Delete Confirmation Modal (Replaces window.confirm) -->
+    <div id="deleteModal" class="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden transition-opacity">
+        <div class="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl space-y-4 animate-slide-up border border-slate-100 text-center">
+            <div class="w-14 h-14 bg-rose-100 text-rose-600 rounded-full flex items-center justify-center mx-auto text-2xl shadow-inner">
+                <i class="fa-solid fa-trash-can"></i>
+            </div>
+            <div>
+                <h3 class="font-bold text-slate-800 text-lg">မှတ်တမ်းကို ဖျက်ရန် သေချာပါသလား?</h3>
+                <p class="text-xs text-slate-500 mt-1 font-medium">ဤလုပ်ဆောင်ချက်ကို ဖျက်ပြီးပါက ပြန်လည်ရယူနိုင်မည် မဟုတ်ပါ။</p>
+            </div>
+            <div class="flex gap-3 pt-2">
+                <button onclick="closeDeleteModal()" class="flex-1 bg-slate-100 text-slate-600 font-bold py-3.5 rounded-2xl hover:bg-slate-200 transition">မလုပ်တော့ပါ</button>
+                <button id="confirmDeleteBtn" class="flex-1 bg-rose-600 text-white font-bold py-3.5 rounded-2xl shadow-md hover:bg-rose-700 transition">ဖျက်မည်</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="fixed bottom-6 right-1/2 translate-x-1/2 sm:translate-x-0 sm:right-6 bg-slate-800/90 backdrop-blur-md text-white px-5 py-3.5 rounded-2xl shadow-2xl border border-slate-700 flex items-center gap-3 transform translate-y-24 opacity-0 transition-all duration-400 z-50 min-w-[280px] justify-center sm:justify-start">
+        <i id="toastIcon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+        <span id="toastMessage" class="text-sm font-bold tracking-wide"></span>
+    </div>
+
+    <!-- JavaScript Application Logic -->
+    <script>
+        // Path Signature for GitHub Pages Isolation (Prevents multi-app collision)
+        const REPO_PATH = window.location.pathname.replace(/\/index\.html$/, '').replace(/\/$/, '');
+        const PATH_HASH = REPO_PATH.replace(/[^a-zA-Z0-9]/g, '_') || 'default_app';
+        
+        // Strictly Unique IndexedDB Name and Service Worker Cache
+        const DB_NAME = `ExpenseTracker_${PATH_HASH}_v2_DB`;
+        const DB_VERSION = 1;
+        const STORE_NAME = 'expenses';
+        const CACHE_NAME = `ExpenseTracker_${PATH_HASH}_Cache_v1`;
+
+        let db = null;
+        let currentMonthFilter = ''; 
+        let categoryChartInstance = null;
+        let dailyChartInstance = null;
+        let pendingDeleteId = null;
+        let deferredPrompt = null;
+
+        // Service Worker Dynamic Registration
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js', { scope: './' })
+                    .then(reg => console.log('SW Registered:', reg.scope))
+                    .catch(err => console.log('SW Registration Failed:', err));
+            });
+        }
+
+        // Handle PWA Installation
+        window.addEventListener('beforeinstallprompt', (e) => {
+            e.preventDefault();
+            deferredPrompt = e;
+            document.getElementById('pwaInstallBtn').classList.remove('hidden');
+        });
+
+        function triggerPwaInstall() {
+            if (deferredPrompt) {
+                deferredPrompt.prompt();
+                deferredPrompt.userChoice.then((choiceResult) => {
+                    if (choiceResult.outcome === 'accepted') {
+                        showToast('App ကို ထည့်သွင်းပြီးပါပြီ');
+                    }
+                    deferredPrompt = null;
+                    document.getElementById('pwaInstallBtn').classList.add('hidden');
+                });
+            }
+        }
+
+        window.addEventListener('DOMContentLoaded', async () => {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('expenseDate').value = today;
+
+            const currentYearMonth = today.substring(0, 7);
+            document.getElementById('selectedMonth').value = currentYearMonth;
+            currentMonthFilter = currentYearMonth;
+
+            document.getElementById('selectedMonth').addEventListener('change', (e) => {
+                currentMonthFilter = e.target.value;
+                refreshAppData();
+            });
+
+            try {
+                db = await initDB();
+                await refreshAppData();
+            } catch (err) {
+                console.error("IndexedDB error:", err);
+                showToast("Database အမှားဖြစ်နေပါသည်", "error");
+            }
+        });
+
+        function initDB() {
+            return new Promise((resolve, reject) => {
+                const request = indexedDB.open(DB_NAME, DB_VERSION);
+                request.onupgradeneeded = (e) => {
+                    const database = e.target.result;
+                    if (!database.objectStoreNames.contains(STORE_NAME)) {
+                        const store = database.createObjectStore(STORE_NAME, { keyPath: 'id', autoIncrement: true });
+                        store.createIndex('date', 'date', { unique: false });
+                    }
+                };
+                request.onsuccess = (e) => resolve(e.target.result);
+                request.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        function addExpenseToDB(record) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).add(record).onsuccess = (e) => resolve(e.target.result);
+                tx.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        function getAllExpensesFromDB() {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readonly');
+                tx.objectStore(STORE_NAME).getAll().onsuccess = (e) => resolve(e.target.result || []);
+                tx.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        function updateExpenseInDB(record) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).put(record).onsuccess = (e) => resolve(e.target.result);
+                tx.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        function deleteExpenseFromDB(id) {
+            return new Promise((resolve, reject) => {
+                const tx = db.transaction(STORE_NAME, 'readwrite');
+                tx.objectStore(STORE_NAME).delete(id).onsuccess = () => resolve();
+                tx.onerror = (e) => reject(e.target.error);
+            });
+        }
+
+        async function refreshAppData() {
+            const allRecords = await getAllExpensesFromDB();
+            const filteredRecords = allRecords.filter(r => r.date.startsWith(currentMonthFilter));
+
+            const total = filteredRecords.reduce((sum, item) => sum + (Number(item.amount) || 0), 0);
+            document.getElementById('monthlyTotalDisplay').innerHTML = `<span>${total.toLocaleString('en-US')}</span> <span class="text-base font-normal opacity-80">¥</span>`;
+            document.getElementById('monthlyCountDisplay').innerHTML = `<span>${filteredRecords.length}</span> <span class="text-xs font-normal opacity-80">ကြိမ်</span>`;
+
+            const storesSet = new Set();
+            allRecords.forEach(r => { if (r.store) storesSet.add(r.store.trim()); });
+            document.getElementById('storesDatalist').innerHTML = Array.from(storesSet).map(store => `<option value="${escapeHTML(store)}">`).join('');
+
+            renderHistory(filteredRecords);
+            renderCharts(filteredRecords);
+            renderPresets(allRecords);
+        }
+
+        async function handleFormSubmit(e) {
+            e.preventDefault();
+            const record = {
+                amount: parseFloat(document.getElementById('amount').value),
+                category: document.getElementById('category').value,
+                store: document.getElementById('store').value.trim(),
+                date: document.getElementById('expenseDate').value,
+                note: document.getElementById('note').value.trim(),
+                createdAt: new Date().toISOString()
+            };
+
+            try {
+                await addExpenseToDB(record);
+                showToast("မှတ်တမ်းအသစ် သိမ်းဆည်းပြီးပါပြီ");
+                document.getElementById('amount').value = '';
+                document.getElementById('store').value = '';
+                document.getElementById('note').value = '';
+
+                if (record.date.substring(0, 7) !== currentMonthFilter) {
+                    currentMonthFilter = record.date.substring(0, 7);
+                    document.getElementById('selectedMonth').value = currentMonthFilter;
+                }
+                await refreshAppData();
+            } catch (err) {
+                showToast("သိမ်းဆည်းရာတွင် အမှားဖြစ်ပေါ်ခဲ့သည်", "error");
+            }
+        }
+
+        async function renderHistory(passedRecords) {
+            const historyListContainer = document.getElementById('historyList');
+            let records = passedRecords || (await getAllExpensesFromDB()).filter(r => r.date.startsWith(currentMonthFilter));
+            
+            const searchKeyword = document.getElementById('historySearch').value.toLowerCase().trim();
+            const categoryFilter = document.getElementById('categoryFilter').value;
+
+            let filtered = records.filter(r => {
+                const matchesSearch = r.category.toLowerCase().includes(searchKeyword) || (r.store && r.store.toLowerCase().includes(searchKeyword)) || (r.note && r.note.toLowerCase().includes(searchKeyword));
+                return matchesSearch && (categoryFilter === 'ALL' || r.category === categoryFilter);
+            });
+
+            if (filtered.length === 0) {
+                historyListContainer.innerHTML = `<div class="text-center py-12 bg-white/50 backdrop-blur-sm rounded-3xl border border-dashed border-slate-300"><p class="text-slate-500 font-bold text-sm">မှတ်တမ်း မရှိသေးပါ</p></div>`;
+                return;
+            }
+
+            const grouped = {};
+            filtered.sort((a, b) => new Date(b.date) - new Date(a.date)).forEach(r => {
+                if (!grouped[r.date]) grouped[r.date] = [];
+                grouped[r.date].push(r);
+            });
+
+            historyListContainer.innerHTML = Object.entries(grouped).map(([dateStr, items]) => {
+                const dayTotal = items.reduce((s, i) => s + Number(i.amount), 0);
+                const [y, m, d] = dateStr.split('-');
+                const formattedDate = `${parseInt(d)} ရက် / ${m} / ${y}`;
+
+                return `
+                    <div class="bg-white/80 backdrop-blur-md rounded-2xl border border-white/50 shadow-sm hover:shadow-md transition-shadow">
+                        <div class="bg-slate-50 px-4 py-2 border-b border-slate-100 flex justify-between items-center rounded-t-2xl">
+                            <span class="text-[11px] font-extrabold text-slate-600"><i class="fa-regular fa-calendar-days text-emerald-500 mr-1"></i> ${formattedDate}</span>
+                            <span class="text-[11px] font-bold text-emerald-700">စုစုပေါင်း: ${dayTotal.toLocaleString('en-US')} ¥</span>
+                        </div>
+                        <div class="divide-y divide-slate-100 p-1">
+                            ${items.map(item => `
+                                <div class="p-3 mx-1 my-1 rounded-xl flex items-center justify-between hover:bg-slate-50 group">
+                                    <div class="space-y-0.5 flex-1 pr-2">
+                                        <div class="font-bold text-slate-700 text-sm">${escapeHTML(item.category)}</div>
+                                        <div class="flex flex-wrap gap-2 text-[10px] text-slate-400 font-medium">
+                                            ${item.note ? `<span><i class="fa-solid fa-note-sticky text-emerald-400"></i> ${escapeHTML(item.note)}</span>` : ''}
+                                            ${item.store ? `<span><i class="fa-solid fa-store text-indigo-400"></i> ${escapeHTML(item.store)}</span>` : ''}
+                                        </div>
+                                    </div>
+                                    <div class="flex items-center gap-3">
+                                        <span class="font-extrabold text-slate-800 text-base">${Number(item.amount).toLocaleString('en-US')} <span class="text-[9px] font-bold text-slate-400">¥</span></span>
+                                        <div class="flex gap-1 opacity-100 sm:opacity-0 sm:group-hover:opacity-100 transition-opacity">
+                                            <button onclick="openEditModal(${item.id})" class="text-slate-400 hover:text-emerald-600 bg-white shadow-sm p-1.5 rounded-lg"><i class="fa-solid fa-pen text-[10px]"></i></button>
+                                            <button onclick="askDeleteRecord(${item.id})" class="text-slate-400 hover:text-rose-600 bg-white shadow-sm p-1.5 rounded-lg"><i class="fa-solid fa-trash-can text-[10px]"></i></button>
+                                        </div>
+                                    </div>
+                                </div>
+                            `).join('')}
+                        </div>
+                    </div>`;
+            }).join('');
+        }
+
+        async function renderCharts(passedRecords) {
+            let records = passedRecords || (await getAllExpensesFromDB()).filter(r => r.date.startsWith(currentMonthFilter));
+            
+            const categoryTotals = {};
+            records.forEach(r => categoryTotals[r.category] = (categoryTotals[r.category] || 0) + Number(r.amount));
+
+            if (categoryChartInstance) categoryChartInstance.destroy();
+            categoryChartInstance = new Chart(document.getElementById('categoryChart'), {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(categoryTotals),
+                    datasets: [{ data: Object.values(categoryTotals), backgroundColor: ['#10b981', '#3b82f6', '#f59e0b', '#f43f5e', '#8b5cf6', '#ec4899', '#06b6d4', '#e11d48', '#64748b'], borderWidth: 3 }]
+                },
+                options: { responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { position: 'bottom', labels: { font: { size: 10 } } } } }
+            });
+
+            const dailyTotals = {};
+            records.forEach(r => {
+                const dayNum = parseInt(r.date.split('-')[2]);
+                dailyTotals[dayNum] = (dailyTotals[dayNum] || 0) + Number(r.amount);
+            });
+
+            const daysInMonth = new Date(currentMonthFilter.split('-')[0], currentMonthFilter.split('-')[1], 0).getDate();
+            const dailyLabels = Array.from({length: daysInMonth}, (_, i) => i + 1);
+            const dailyData = dailyLabels.map(d => dailyTotals[d] || 0);
+
+            const dailyCtx = document.getElementById('dailyChart').getContext('2d');
+            const gradient = dailyCtx.createLinearGradient(0, 0, 0, 400);
+            gradient.addColorStop(0, '#10b981'); gradient.addColorStop(1, '#34d399');
+
+            if (dailyChartInstance) dailyChartInstance.destroy();
+            dailyChartInstance = new Chart(dailyCtx, {
+                type: 'bar',
+                data: { labels: dailyLabels, datasets: [{ data: dailyData, backgroundColor: gradient, borderRadius: 4 }] },
+                options: { responsive: true, maintainAspectRatio: false, scales: { y: { beginAtZero: true, grid: { display: false } }, x: { grid: { display: false } } }, plugins: { legend: { display: false } } }
+            });
+        }
+
+        function renderPresets(allRecords) {
+            const allCategories = [
+                { label: '🍚 အစားအစာ', value: 'အစားအစာ' }, { label: '🏠 အိမ်သုံးစရိတ်', value: 'အိမ်သုံးစရိတ်' },
+                { label: '🚌 ခရီးစရိတ်', value: 'ခရီးစရိတ်' }, { label: '📱 ဖုန်း/အင်တာနက်', value: 'ဖုန်းနှင့် အင်တာနက်' },
+                { label: '💊 ကျန်းမာရေး', value: 'ကျန်းမာရေး' }, { label: '👕 ဝတ်ဆင်ရေး', value: 'ဝတ်ဆင်ရေး' },
+                { label: '☕ အပျော်အပါး', value: 'အပျော်အပါး' }, { label: '💳 အကြွေးစာရင်း', value: 'အကြွေးစာရင်း' },
+                { label: '📦 အထွေထွေ', value: 'အထွေထွေ' }
+            ];
+
+            document.getElementById('quickCategoriesContainer').innerHTML = allCategories.map(cat => `
+                <button type="button" onclick="fillQuickCategory('${escapeHTML(cat.value)}')" class="bg-white text-slate-700 text-[11px] font-bold px-3 py-2 rounded-xl border border-slate-100 shadow-[0_2px_0_#e2e8f0] active:translate-y-[2px] active:shadow-none transition-all">
+                    ${escapeHTML(cat.label)}
+                </button>
+            `).join('');
+
+            const storeCounts = {};
+            (allRecords || []).forEach(r => { if (r.store) storeCounts[r.store.trim()] = (storeCounts[r.store.trim()] || 0) + 1; });
+            const sortedStores = Object.keys(storeCounts).sort((a, b) => storeCounts[b] - storeCounts[a]).slice(0, 10);
+
+            const storesContainer = document.getElementById('quickStoresContainer');
+            if (sortedStores.length === 0) {
+                storesContainer.innerHTML = `<span class="text-xs text-slate-400">ဆိုင်မရှိသေးပါ</span>`;
+            } else {
+                storesContainer.innerHTML = sortedStores.map(store => `
+                    <button type="button" onclick="fillQuickStore('${escapeHTML(store)}')" class="bg-white text-indigo-600 text-[11px] font-bold px-3 py-2 rounded-xl border border-slate-100 shadow-[0_2px_0_#e2e8f0] active:translate-y-[2px] active:shadow-none transition-all">
+                        <i class="fa-solid fa-store mr-1"></i> ${escapeHTML(store)}
+                    </button>
+                `).join('');
+            }
+        }
+
+        function fillQuickCategory(val) { document.getElementById('category').value = val; switchTab('add'); document.getElementById('amount').focus(); }
+        function fillQuickStore(val) { document.getElementById('store').value = val; switchTab('add'); }
+
+        async function openEditModal(id) {
+            const record = (await getAllExpensesFromDB()).find(r => r.id === id);
+            if (!record) return;
+            ['Id', 'Amount', 'Category', 'Store', 'ExpenseDate', 'Note'].forEach(key => 
+                document.getElementById(`edit${key}`).value = record[key.toLowerCase()] || ''
+            );
+            document.getElementById('editModal').classList.remove('hidden');
+        }
+
+        function closeEditModal() { document.getElementById('editModal').classList.add('hidden'); }
+
+        async function handleEditSubmit(e) {
+            e.preventDefault();
+            try {
+                await updateExpenseInDB({
+                    id: Number(document.getElementById('editId').value),
+                    amount: parseFloat(document.getElementById('editAmount').value),
+                    category: document.getElementById('editCategory').value,
+                    store: document.getElementById('editStore').value.trim(),
+                    date: document.getElementById('editExpenseDate').value,
+                    note: document.getElementById('editNote').value.trim(),
+                    updatedAt: new Date().toISOString()
+                });
+                closeEditModal();
+                showToast("မှတ်တမ်း ပြင်ဆင်ပြီးပါပြီ");
+                await refreshAppData();
+            } catch (err) { showToast("အမှားဖြစ်ပေါ်ခဲ့သည်", "error"); }
+        }
+
+        // Custom Delete Confirmation Modal Logic (Without window.confirm)
+        function askDeleteRecord(id) {
+            pendingDeleteId = id;
+            const modal = document.getElementById('deleteModal');
+            modal.classList.remove('hidden');
+            
+            document.getElementById('confirmDeleteBtn').onclick = async () => {
+                if (pendingDeleteId !== null) {
+                    await deleteExpenseFromDB(pendingDeleteId);
+                    pendingDeleteId = null;
+                    closeDeleteModal();
+                    showToast("ဖျက်ပစ်ပြီးပါပြီ");
+                    await refreshAppData();
+                }
+            };
+        }
+
+        function closeDeleteModal() {
+            document.getElementById('deleteModal').classList.add('hidden');
+            pendingDeleteId = null;
+        }
+
+        function switchTab(tabKey) {
+            document.querySelectorAll('.tab-content').forEach(el => { el.classList.add('hidden'); el.classList.remove('animate-slide-up'); });
+            document.querySelectorAll('.tab-btn').forEach(el => { el.classList.remove('bg-white', 'shadow-sm', 'text-emerald-600'); el.classList.add('text-slate-500'); });
+            
+            const target = document.getElementById(`view-${tabKey}`);
+            target.classList.remove('hidden');
+            void target.offsetWidth; target.classList.add('animate-slide-up');
+
+            const btn = document.getElementById(`tab-${tabKey}`);
+            btn.classList.remove('text-slate-500'); btn.classList.add('bg-white', 'shadow-sm', 'text-emerald-600');
+            
+            if (tabKey === 'presets') getAllExpensesFromDB().then(renderPresets);
+        }
+
+        function showToast(msg, type = "success") {
+            const toast = document.getElementById('toast');
+            document.getElementById('toastMessage').innerText = msg;
+            document.getElementById('toastIcon').className = type === "error" ? "fa-solid fa-circle-exclamation text-rose-400 text-lg" : "fa-solid fa-circle-check text-emerald-400 text-lg";
+            toast.classList.remove('translate-y-24', 'opacity-0');
+            setTimeout(() => toast.classList.add('translate-y-24', 'opacity-0'), 3000);
+        }
+
+        function escapeHTML(str) { return !str ? '' : str.replace(/[&<>'"]/g, t => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', "'": '&#39;', '"': '&quot;' }[t] || t)); }
+    </script>
+</body>
+</html>
